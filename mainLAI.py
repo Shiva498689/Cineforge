@@ -17,6 +17,14 @@ from workflows import build_image_workflow, build_video_workflow
 
 app = FastAPI(title="CineForge — AI Video Pipeline", version="3.1.0")
 
+STYLE_TO_LORA = {
+    "default": None,
+    "anime": "anime.safetensors",
+    "cinematic": "cinematic.safetensors",
+    "pixar": "pixar.safetensors",
+    "cyberpunk": "cyberpunk.safetensors",
+    "ghibli": "ghibli.safetensors"
+}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -35,6 +43,7 @@ class CreateProjectReq(BaseModel):
 
 class SceneReq(BaseModel):
     prompt: str
+    style: str = "default"
 
 class ConfirmReq(BaseModel):
     confirmed: bool   
@@ -79,7 +88,12 @@ async def create_scene(pid: str, req: SceneReq, bg: BackgroundTasks):
     except Exception as e:
         raise HTTPException(502, f"Prompt enhancement failed: {e}")
 
-    scene     = storage.add_scene(pid, req.prompt, clip_prompts)
+    scene = storage.add_scene(
+    pid,
+    req.prompt,
+    clip_prompts,
+    style=req.style
+)
     scene_idx = scene["scene_idx"]
     storage.update_scene(pid, scene_idx,
                          enhanced_image_prompt=img_prompt,
@@ -178,7 +192,15 @@ async def download_final(pid: str):
 
 async def _gen_source_image(pid: str, scene_idx: int, image_prompt: str):
     try:
-        workflow  = build_image_workflow(image_prompt)
+        scene = storage.get_scene(pid, scene_idx)
+        style = scene.get("style", "default")
+        lora = STYLE_TO_LORA.get(style)
+
+        workflow = build_image_workflow(
+            image_prompt,
+            lora
+        )
+
         dest_path = storage.source_image_path(pid, scene_idx)
         await comfy.run_job(workflow, dest_path, timeout=1000)
         storage.update_scene(pid, scene_idx,
@@ -191,12 +213,17 @@ async def _gen_source_image(pid: str, scene_idx: int, image_prompt: str):
 async def _gen_clips(pid: str, scene_idx: int):
     try:
         scene      = storage.get_scene(pid, scene_idx)
+        style = scene.get("style", "default")
+        lora = STYLE_TO_LORA.get(style)
         prompts    = scene["enhanced_prompts"]
         seed_image = Path(scene["source_image"])
 
         for i in range(settings.CLIPS_PER_SCENE):
             clip_path = storage.clip_path(pid, scene_idx, i)
-            workflow  = build_video_workflow(prompts[i])
+            workflow = build_video_workflow(
+                prompts[i],
+                lora
+            )
 
             await comfy.run_job(
                 workflow,
