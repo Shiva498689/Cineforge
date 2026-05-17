@@ -20,7 +20,7 @@
     "_meta": { "title": "Positive prompt" },
     "inputs": {
       "text": "INJECTED_BY_BACKEND",
-      "clip": ["1", 1]
+      "clip": ["8", 1]
     }
   },
   "4": {
@@ -28,14 +28,14 @@
     "_meta": { "title": "Negative prompt" },
     "inputs": {
       "text": "blurry, distorted, low quality, watermark, deformed, extra limbs, bad anatomy, disfigured, mutated, ugly, duplicate",
-      "clip": ["1", 1]
+      "clip": ["8", 1]
     }
   },
   "5": {
     "class_type": "KSampler",
     "_meta": { "title": "KSampler" },
     "inputs": {
-      "model":        ["1", 0],
+      "model":        ["8", 0],
       "positive":     ["3", 0],
       "negative":     ["4", 0],
       "latent_image": ["2", 0],
@@ -62,5 +62,16 @@
       "filename_prefix": "ltx_keyframe",
       "images":          ["6", 0]
     }
+  }
+},
+"8": {
+  "class_type": "LoraLoader",
+  "_meta": { "title": "Load LoRA" },
+  "inputs": {
+    "model": ["1", 0],
+    "clip": ["1", 1],
+    "lora_name": "anime.safetensors",
+    "strength_model": 0.8,
+    "strength_clip": 0.8
   }
 }
